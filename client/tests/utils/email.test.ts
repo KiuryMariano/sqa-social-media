@@ -1,7 +1,6 @@
 import { isEmailValid } from "@/utils/email";
 
 describe("Email Validation - Unit Tests", () => {
-  // ==================== TESTE DE SUCESSO ====================
 
   test("Deve aceitar email válido com formato correto", () => {
     expect(isEmailValid("usuario@example.com")).toBe(true);

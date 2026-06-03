@@ -15,8 +15,6 @@ class UserServiceTest {
         userService = new UserService(null);
     }
 
-    // ==================== TESTE DE SUCESSO ====================
-
     @Test
     @DisplayName("Deve aceitar email válido com formato correto")
     void testIsValidEmail_ValidEmail_ReturnsTrue() {

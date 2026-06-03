@@ -29,7 +29,6 @@ jest.mock("@/contexts/AuthContext", () => ({
 }));
 
 describe("SignUp Page - Integration Tests", () => {
-  // ==================== TESTE DE SUCESSO ====================
 
   test("Deve renderizar página de signup com todos os elementos", () => {
     render(<SignUpPage />);

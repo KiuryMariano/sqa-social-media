@@ -3,7 +3,6 @@ import { render, screen } from "@testing-library/react";
 import Input from "@/components/Input";
 
 describe("Input Component - Unit Tests", () => {
-  // ==================== TESTE DE SUCESSO ====================
 
   test("Deve renderizar input com label e mensagem de erro", () => {
     render(<Input label="Email" error="Email inválido" />);

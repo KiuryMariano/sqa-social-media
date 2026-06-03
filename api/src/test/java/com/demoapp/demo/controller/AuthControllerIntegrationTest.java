@@ -26,8 +26,6 @@ class AuthControllerIntegrationTest {
     private static String testUserEmail = "test@example.com";
     private static String testUserPassword = "Abcdefg1@";
 
-    // ==================== TESTE DE SUCESSO ====================
-
     @Test
     @DisplayName("Deve criar usuário com credenciais válidas")
     void testSignup_ValidCredentials_Returns200() throws Exception {
