@@ -1,0 +1,199 @@
+# CI Pipeline - Social Media SQA Project
+# Executa toda suíte de testes (caixa branca e caixa preta) em PRs para main
+
+name: CI - Test Suite
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # ============================================
+  # JOB 1: Testes do Client (Next.js)
+  # ============================================
+  test-client:
+    name: Client Tests (Caixa Branca + Caixa Preta)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Instalar dependências do client
+        working-directory: ./client
+        run: npm ci
+
+      - name: Instalar Playwright (para testes de caixa preta)
+        working-directory: ./client
+        run: npx playwright install --with-deps chromium
+
+      # ============================================
+      # CAIXA BRANCA: Testes Unitários/Integração (Jest)
+      # ============================================
+      - name: Executar testes de caixa branca (Jest)
+        working-directory: ./client
+        run: npm test -- --coverage --ci
+
+      # ============================================
+      # CAIXA PRETA: Testes E2E (Playwright)
+      # ============================================
+      - name: Iniciar servidor Next.js em background
+        working-directory: ./client
+        run: |
+          mkdir -p logs
+          nohup npm run dev > logs/server.log 2>&1 &
+          echo $! > logs/server.pid
+
+      - name: Aguardar servidor estar pronto
+        working-directory: ./client
+        run: |
+          timeout 60 bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 1; done' || {
+            cat logs/server.log
+            echo "Servidor não ficou pronto em 60s"
+            exit 1
+          }
+          echo "Servidor Next.js está rodando"
+
+      - name: Executar testes de caixa preta (Playwright E2E)
+        working-directory: ./client/tests/caixaPreta
+        run: npx playwright test
+
+      - name: Upload report Playwright (Client)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-client
+          path: client/tests/caixaPreta/playwright-report/
+          retention-days: 7
+
+      - name: Upload coverage Jest (Client)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-client
+          path: client/coverage/
+          retention-days: 7
+
+  # ============================================
+  # JOB 2: Testes da API (Spring Boot)
+  # ============================================
+  test-api:
+    name: API Tests (Caixa Branca + Caixa Preta)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: social_media
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+          cache-dependency-path: api/pom.xml
+
+      - name: Configurar Node.js (para Playwright)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Aguardar MySQL estar pronto
+        run: |
+          until mysqladmin ping -h 127.0.0.1 -u root -proot --silent; do
+            echo "Aguardando MySQL..."
+            sleep 2
+          done
+          echo "MySQL está pronto"
+
+      - name: Criar usuário e schema no MySQL
+        run: |
+          mysql -h 127.0.0.1 -u root -proot -e "
+            CREATE USER 'sqaapp'@'%' IDENTIFIED BY 'sqaapp123';
+            GRANT ALL PRIVILEGES ON social_media.* TO 'sqaapp'@'%';
+            FLUSH PRIVILEGES;
+          "
+
+      # ============================================
+      # CAIXA BRANCA: Testes Unitários/Integração (JUnit)
+      # ============================================
+      - name: Executar testes de caixa branca (JUnit/Maven)
+        working-directory: ./api
+        run: ./mvnw test -Dspring.profiles.active=test
+
+      - name: Upload relatório JUnit (API)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-report-api
+          path: api/target/surefire-reports/
+          retention-days: 7
+
+      # ============================================
+      # CAIXA PRETA: Testes de API HTTP (Playwright)
+      # ============================================
+      - name: Instalar dependências Playwright (API tests)
+        working-directory: ./api/tests/caixaPreta
+        run: npx playwright install --with-deps chromium
+
+      - name: Compilar e iniciar API Spring Boot
+        working-directory: ./api
+        run: |
+          # Empacotar sem rodar testes (já rodamos acima)
+          ./mvnw clean package -DskipTests
+          # Iniciar em background
+          mkdir -p logs
+          nohup java -jar target/*.jar > logs/api.log 2>&1 &
+          echo $! > logs/api.pid
+
+      - name: Aguardar API estar pronta
+        working-directory: ./api
+        run: |
+          timeout 120 bash -c 'until curl -s http://localhost:8080/actuator/health || curl -s http://localhost:8080 > /dev/null; do sleep 2; done' || {
+            cat logs/api.log
+            echo "API não ficou pronta em 120s"
+            exit 1
+          }
+          echo "API Spring Boot está rodando"
+
+      - name: Executar testes de caixa preta (Playwright API HTTP)
+        working-directory: ./api/tests/caixaPreta
+        run: npx playwright test
+
+      - name: Upload report Playwright (API)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-api
+          path: api/tests/caixaPreta/playwright-report/
+          retention-days: 7
+
+      - name: Upload logs da API
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-server-logs
+          path: api/logs/
+          retention-days: 7

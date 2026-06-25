@@ -32,7 +32,7 @@ Error: BUG: Senha de 8 caracteres deveria ser válida!
         - generic [ref=e12]:
           - generic [ref=e13]:
             - generic [ref=e14]: Email
-            - textbox "seu@email.com" [ref=e15]: teste_bug_1782333923215@exemplo.com
+            - textbox "seu@email.com" [ref=e15]: teste_bug_1782416581344@exemplo.com
           - generic [ref=e16]:
             - generic [ref=e17]: Senha
             - textbox "••••••••" [ref=e18]: Abc123@#
