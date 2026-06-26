@@ -35,6 +35,14 @@ jobs:
         working-directory: ./client
         run: npx playwright install --with-deps chromium
 
+      - name: Instalar dependências dos testes E2E
+        working-directory: ./client/tests/caixaPreta
+        run: npm ci
+
+      - name: Instalar Playwright para testes E2E
+        working-directory: ./client/tests/caixaPreta
+        run: npx playwright install --with-deps chromium
+
       # ============================================
       # CAIXA BRANCA: Testes Unitários/Integração (Jest)
       # ============================================
