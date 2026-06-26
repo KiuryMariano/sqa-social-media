@@ -16,6 +16,20 @@ jobs:
     name: Client Tests (Caixa Branca + Caixa Preta)
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: social_media
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
@@ -26,6 +40,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+          cache-dependency-path: api/pom.xml
 
       - name: Instalar dependências do client
         working-directory: ./client
@@ -42,6 +64,22 @@ jobs:
       - name: Instalar Playwright para testes E2E
         working-directory: ./client/tests/caixaPreta
         run: npx playwright install --with-deps chromium
+
+      - name: Aguardar MySQL estar pronto
+        run: |
+          until mysqladmin ping -h 127.0.0.1 -u root -proot --silent; do
+            echo "Aguardando MySQL..."
+            sleep 2
+          done
+          echo "MySQL está pronto"
+
+      - name: Criar usuário e schema no MySQL
+        run: |
+          mysql -h 127.0.0.1 -u root -proot -e "
+            CREATE USER 'sqaapp'@'%' IDENTIFIED BY 'sqaapp123';
+            GRANT ALL PRIVILEGES ON social_media.* TO 'sqaapp'@'%';
+            FLUSH PRIVILEGES;
+          "
 
       # ============================================
       # CAIXA BRANCA: Testes Unitários/Integração (Jest)
@@ -87,6 +125,24 @@ jobs:
             exit 1
           }
           echo "Servidor Next.js está rodando"
+
+      - name: Compilar e iniciar API Spring Boot
+        working-directory: ./api
+        run: |
+          ./mvnw clean package -DskipTests
+          mkdir -p logs
+          nohup java -jar target/*.jar > logs/api.log 2>&1 &
+          echo $! > logs/api.pid
+
+      - name: Aguardar API estar pronta
+        working-directory: ./api
+        run: |
+          timeout 120 bash -c 'until curl -s http://localhost:8080/posts > /dev/null 2>&1; do sleep 2; done' || {
+            cat logs/api.log
+            echo "API não ficou pronta em 120s"
+            exit 1
+          }
+          echo "API Spring Boot está rodando"
 
       - name: Executar testes de caixa preta (Playwright E2E)
         working-directory: ./client/tests/caixaPreta
