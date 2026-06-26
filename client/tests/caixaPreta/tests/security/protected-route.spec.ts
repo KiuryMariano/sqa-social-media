@@ -20,11 +20,8 @@ test('não deve acessar página protegida sem autenticação', async ({ page }) 
   // ========================================================================
   // PASSO 3: Verificar redirecionamento para login
   // ========================================================================
-  try {
-    await page.waitForURL('/signin', { timeout: 5000 });
-  } catch (e) {
-    expect(page.url()).toContain('signin');
-  }
+  // Aguardar redirecionamento (router.push é assíncrono)
+  await page.waitForURL(/\/signin/, { timeout: 8000 });
 
   // ========================================================================
   // PASSO 4: Verificar que está na página de login
