@@ -1,15 +1,15 @@
 import { isPasswordValid, getPasswordValidationMessage } from "@/utils/password";
 
 describe("Password Validation - Unit Tests", () => {
-  // ==================== TESTE DE BUG (FALHA) ====================
+  // ==================== VALIDAÇÃO DE MÍNIMO DE CARACTERES ====================
 
-  test("[BUG] Mensagem de senha inconsistente - diz 8 mas exige 9+", () => {
+  test("deve aceitar senha com exatamente 8 caracteres válidos", () => {
     const eightCharPassword = "Abcdef1@";
 
-    expect(isPasswordValid(eightCharPassword)).toBe(false);
+    expect(isPasswordValid(eightCharPassword)).toBe(true);
 
     const message = getPasswordValidationMessage(eightCharPassword);
-    expect(message).toContain("9");
+    expect(message).toBe("");
   });
 }
 );
