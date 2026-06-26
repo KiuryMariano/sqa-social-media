@@ -37,7 +37,7 @@ jobs:
 
       - name: Instalar dependências dos testes E2E
         working-directory: ./client/tests/caixaPreta
-        run: npm ci
+        run: npm install
 
       - name: Instalar Playwright para testes E2E
         working-directory: ./client/tests/caixaPreta
