@@ -56,12 +56,21 @@ public class PostService {
       for (JsonNode postNode : postsArray) {
         Map<String, Object> post = new HashMap<>();
         Long postId = postNode.get("id").asLong();
-        
+
         post.put("id", postId);
         post.put("title", postNode.get("title").asText());
         post.put("body", postNode.get("body").asText());
         post.put("liked", likedPostIds.contains(postId));
-        
+
+        // Adicionar reactions (likes e dislikes da DummyJSON)
+        JsonNode reactionsNode = postNode.get("reactions");
+        if (reactionsNode != null) {
+          Map<String, Object> reactions = new HashMap<>();
+          reactions.put("likes", reactionsNode.get("likes").asInt());
+          reactions.put("dislikes", reactionsNode.get("dislikes").asInt());
+          post.put("reactions", reactions);
+        }
+
         posts.add(post);
       }
 
@@ -102,13 +111,22 @@ public class PostService {
         String url = "https://dummyjson.com/posts/" + postId;
         String response = restTemplate.getForObject(url, String.class);
         JsonNode postNode = objectMapper.readTree(response);
-        
+
         Map<String, Object> post = new HashMap<>();
         post.put("id", postNode.get("id").asLong());
         post.put("title", postNode.get("title").asText());
         post.put("body", postNode.get("body").asText());
         post.put("liked", true);
-        
+
+        // Adicionar reactions (likes e dislikes da DummyJSON)
+        JsonNode reactionsNode = postNode.get("reactions");
+        if (reactionsNode != null) {
+          Map<String, Object> reactions = new HashMap<>();
+          reactions.put("likes", reactionsNode.get("likes").asInt());
+          reactions.put("dislikes", reactionsNode.get("dislikes").asInt());
+          post.put("reactions", reactions);
+        }
+
         posts.add(post);
       }
 
