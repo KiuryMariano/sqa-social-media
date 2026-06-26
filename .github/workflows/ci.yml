@@ -45,6 +45,24 @@ jobs:
       # ============================================
       # CAIXA PRETA: Testes E2E (Playwright)
       # ============================================
+      - name: Compilar e iniciar API Spring Boot (necessário para testes E2E do client)
+        working-directory: ./api
+        run: |
+          ./mvnw clean package -DskipTests -q
+          mkdir -p logs
+          nohup java -jar target/*.jar > logs/api.log 2>&1 &
+          echo $! > logs/api.pid
+
+      - name: Aguardar API estar pronta
+        working-directory: ./api
+        run: |
+          timeout 120 bash -c 'until curl -s http://localhost:8080 > /dev/null; do sleep 2; done' || {
+            cat logs/api.log
+            echo "API não ficou pronta em 120s"
+            exit 1
+          }
+          echo "API Spring Boot está rodando"
+
       - name: Iniciar servidor Next.js em background
         working-directory: ./client
         run: |
@@ -80,6 +98,16 @@ jobs:
         with:
           name: coverage-client
           path: client/coverage/
+          retention-days: 7
+
+      - name: Upload logs do Client e API
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-logs
+          path: |
+            client/logs/
+            api/logs/
           retention-days: 7
 
   # ============================================
